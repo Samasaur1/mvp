@@ -25,5 +25,16 @@
       packages = define (pkgs: {
         default = pkgs.callPackage ./. { };
       });
+
+      devShells = define (pkgs: {
+        default = pkgs.mkShell {
+          name = "mvp dev shell";
+
+          buildInputs = [
+            pkgs.cargo
+            pkgs.rustc
+          ];
+        };
+      });
     };
 }
