@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::{absolute, PathBuf}};
 
 use clap::Parser;
 use regex::Regex;
@@ -19,6 +19,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let has_capture_group = args.id_regex.captures_len() > 1;
+
+    let file_action = match std::env::args().next() {
+        Some(argv0) => {
+            match argv0.as_str() {
+                "mvp" => fs::rename,
+                "cpp" => |source, dest| {
+                    fs::copy(source, dest).map(|_| ())
+                },
+                "lnp" => |source, dest| {
+                    let absolute_source = absolute(source)?;
+                    fs::soft_link(absolute_source, dest)
+                    // std::os::unix::fs::symlink(absolute_source, dest)
+                },
+                _ => fs::rename
+            }
+        },
+        None => fs::rename,
+    };
 
     fs::read_dir(&args.from_dir)?
         .for_each(|entry| {
@@ -71,16 +89,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(_) => {},
                 Err(e) => {
                     eprintln!("Cannot create prefix directory {:?}", target_dir);
+                    eprintln!("{}", e);
                     return;
                 }
             };
 
             let source = args.from_dir.join(&name);
             let dest = target_dir.join(&name);
-            match fs::rename(source, dest) {
+            match file_action(source, dest) {
                 Ok(_) => {},
                 Err(e) => {
                     eprintln!("Cannot move entry {}", name);
+                    eprintln!("{}", e);
                     return;
                 }
             };
