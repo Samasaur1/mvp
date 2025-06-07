@@ -27,18 +27,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "cpp" => (|source, dest| {
                     fs::copy(source, dest).map(|_| ())
                 }, "copy"),
-                "lnp" => (|source, dest| {
-                    let absolute_source = absolute(source)?;
-                    fs::soft_link(absolute_source, dest)
-                    // std::os::unix::fs::symlink(absolute_source, dest)
-                }, "symlink"),
+                "lnp" => (fs::soft_link, "symlink"),
                 _ => (fs::rename, "move"),
             }
         },
         None => (fs::rename, "move"),
     };
 
-    fs::read_dir(&args.from_dir)?
+    let from_dir = absolute(args.from_dir)?;
+    let to_dir = absolute(args.to_dir)?;
+
+    fs::read_dir(&from_dir)?
         .for_each(|entry| {
             let item = match entry {
                 Ok(e) => e,
@@ -81,9 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let first_prefix = &id[0..1];
             let second_prefix = &id[1..2];
 
-            let mut target_dir = args.to_dir.clone();
-            target_dir.push(first_prefix);
-            target_dir.push(second_prefix);
+            let target_dir = to_dir.join(first_prefix).join(second_prefix);
 
             match fs::create_dir_all(&target_dir) {
                 Ok(_) => {},
@@ -94,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            let source = args.from_dir.join(&name);
+            let source = from_dir.join(&name);
             let dest = target_dir.join(&name);
             match file_action(source, dest) {
                 Ok(_) => {},
