@@ -10,5 +10,5 @@ in
     src = ./.;
 
     useFetchCargoVendor = true;
-    cargoHash = "sha256-h+zo3PlQyYK6ALlVpnNcgycaKbSyL8T861TdBB2E7Js=";
+    cargoHash = "sha256-Se2u40LXKtju8vIlaQYr2pKrtOpGKd5vphnljGa7WN0=";
   }
