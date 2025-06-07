@@ -20,22 +20,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let has_capture_group = args.id_regex.captures_len() > 1;
 
-    let file_action = match std::env::args().next() {
+    let (file_action, verb): (fn(PathBuf, PathBuf) -> std::io::Result<()>, &'static str) = match std::env::args().next() {
         Some(argv0) => {
             match argv0.as_str() {
-                "mvp" => fs::rename,
-                "cpp" => |source, dest| {
+                "mvp" => (fs::rename, "move"),
+                "cpp" => (|source, dest| {
                     fs::copy(source, dest).map(|_| ())
-                },
-                "lnp" => |source, dest| {
+                }, "copy"),
+                "lnp" => (|source, dest| {
                     let absolute_source = absolute(source)?;
                     fs::soft_link(absolute_source, dest)
                     // std::os::unix::fs::symlink(absolute_source, dest)
-                },
-                _ => fs::rename
+                }, "symlink"),
+                _ => (fs::rename, "move"),
             }
         },
-        None => fs::rename,
+        None => (fs::rename, "move"),
     };
 
     fs::read_dir(&args.from_dir)?
@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             match file_action(source, dest) {
                 Ok(_) => {},
                 Err(e) => {
-                    eprintln!("Cannot move entry {}", name);
+                    eprintln!("Cannot {} entry {}", &verb, name);
                     eprintln!("{}", e);
                     return;
                 }
