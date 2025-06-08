@@ -1,4 +1,4 @@
-use std::{fs, path::{absolute, PathBuf}};
+use std::{fs, path::{absolute, Path, PathBuf}};
 
 use clap::Parser;
 use regex::Regex;
@@ -15,23 +15,46 @@ struct Args {
     // id_regex should be (prefix_chunk_size * prefix_count) dots
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum FileAction {
+    Mvp,
+    Cpp,
+    Lnp,
+}
+
+impl FileAction {
+    pub fn action<P: AsRef<Path>, Q: AsRef<Path>>(self, source: P, dest: Q) -> std::io::Result<()> {
+        match self {
+            Self::Mvp => fs::rename(source, dest),
+            Self::Cpp => fs::copy(source, dest).map(|_| ()),
+            Self::Lnp => fs::soft_link(source, dest),
+        }
+    }
+
+    pub const fn verb(self) -> &'static str {
+        match self {
+            Self::Mvp => "move",
+            Self::Cpp => "copy",
+            Self::Lnp => "symlink",
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let has_capture_group = args.id_regex.captures_len() > 1;
 
-    let (file_action, verb): (fn(PathBuf, PathBuf) -> std::io::Result<()>, &'static str) = match std::env::args().next() {
+    let file_action= match std::env::args().next() {
         Some(argv0) => {
             match argv0.as_str() {
-                "mvp" => (fs::rename, "move"),
-                "cpp" => (|source, dest| {
-                    fs::copy(source, dest).map(|_| ())
-                }, "copy"),
-                "lnp" => (fs::soft_link, "symlink"),
-                _ => (fs::rename, "move"),
+                "mvp" => FileAction::Mvp,
+                "cpp" => FileAction::Cpp,
+                "lnp" => FileAction::Lnp,
+                _ => FileAction::Mvp,
             }
         },
-        None => (fs::rename, "move"),
+        None => FileAction::Mvp,
     };
 
     let from_dir = absolute(args.from_dir)?;
@@ -93,10 +116,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let source = from_dir.join(&name);
             let dest = target_dir.join(&name);
-            match file_action(source, dest) {
+            match file_action.action(source, dest) {
                 Ok(_) => {},
                 Err(e) => {
-                    eprintln!("Cannot {} entry {}", &verb, name);
+                    eprintln!("Cannot {} entry {}", file_action.verb(), name);
                     eprintln!("{}", e);
                     return;
                 }
