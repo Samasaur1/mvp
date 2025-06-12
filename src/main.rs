@@ -101,9 +101,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let first_prefix = &id[0..1];
-            let second_prefix = &id[1..2];
 
-            let target_dir = to_dir.join(first_prefix).join(second_prefix);
+            let target_dir = match &id.get(1..2) {
+                Some(second_prefix) => {
+                    to_dir.join(first_prefix).join(second_prefix)
+                },
+                None => {
+                    to_dir.join(first_prefix)
+                }
+            };
 
             match fs::create_dir_all(&target_dir) {
                 Ok(_) => {},
