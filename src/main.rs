@@ -25,7 +25,20 @@ enum FileAction {
 impl FileAction {
     pub fn action<P: AsRef<Path>, Q: AsRef<Path>>(self, source: P, dest: Q) -> std::io::Result<()> {
         match self {
-            Self::Mvp => fs::rename(source, dest),
+            Self::Mvp => {
+                if fs::exists(&dest)? {
+                    let dest_meta = fs::metadata(&dest)?;
+                    if dest_meta.is_dir() {
+                        fs::remove_dir_all(&dest)?;
+                    } else {
+                        fs::remove_file(&dest)?;
+                    }
+                }
+
+                fs::rename(source, dest)?;
+
+                Ok(())
+            },
             Self::Cpp => fs::copy(source, dest).map(|_| ()),
             Self::Lnp => fs::soft_link(source, dest),
         }
